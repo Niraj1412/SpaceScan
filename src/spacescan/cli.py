@@ -8,7 +8,7 @@ import time
 
 from .io import write_json
 from .lidar import analyze_lidar
-from .media import analyze_photos, analyze_video
+from .media import analyze_photos, analyze_video, is_photo_capture
 from .render import render_svg
 from .validate import validate_result
 
@@ -19,7 +19,7 @@ def detect_tier(path: Path) -> str:
         return "lidar"
     if path.is_file() and path.suffix.lower() in {".mp4", ".mov", ".m4v"}:
         return "video"
-    if path.is_dir() and any(item.suffix.lower() in {".jpg", ".jpeg", ".png", ".heic"} for item in path.iterdir() if item.is_file()):
+    if is_photo_capture(path):
         return "photos"
     raise ValueError("cannot infer tier; pass a Record3D folder, a video, or a folder of photos")
 

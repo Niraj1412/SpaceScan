@@ -27,6 +27,15 @@ def _room_folders(path: Path) -> list[tuple[str, list[Path]]]:
     return [(name, images) for name, images in rooms if images]
 
 
+def is_photo_capture(path: Path) -> bool:
+    """Return True for either a flat room folder or property/room/image layout."""
+    if not path.is_dir():
+        return False
+    if _images(path):
+        return True
+    return any(_images(folder) for folder in path.iterdir() if folder.is_dir())
+
+
 def _measurement_width(tier: str, value: float) -> float:
     fraction = 0.40 if tier == "photos" else 0.25
     return max(0.35, value * fraction)

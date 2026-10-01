@@ -1,8 +1,10 @@
 import unittest
+from pathlib import Path
 import numpy as np
 
 from spacescan.geometry import oriented_envelope, polygon_area, quaternion_matrix, robust_mode
 from spacescan.validate import validate_result
+from spacescan.cli import detect_tier
 
 
 class GeometryTests(unittest.TestCase):
@@ -20,6 +22,10 @@ class GeometryTests(unittest.TestCase):
 
     def test_validator_rejects_empty_payload(self):
         self.assertTrue(validate_result({}))
+
+    def test_nested_photo_capture_is_detected(self):
+        fixture = Path(__file__).parent / "fixtures" / "photo_capture"
+        self.assertEqual(detect_tier(fixture), "photos")
 
 
 if __name__ == "__main__":
