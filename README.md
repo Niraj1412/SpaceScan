@@ -86,6 +86,7 @@ python -m unittest discover -s tests -v
 - `docs/DEVICE_MATRIX.md` — supported hardware and claimed accuracy
 - `docs/COMPLIANCE.md` — requirement-to-artifact matrix
 - `docs/TECHNICAL_REPORT.md` — concise architecture and error-budget report
+- `docs/BENCHMARK_REPORT.md` — supplied-data checks and unfilled accuracy gates
 - `docs/FIX_LOOP.md` — before/after declaration and required measurement placeholders
 
 ## Disclosures and limitations
@@ -94,4 +95,3 @@ python -m unittest discover -s tests -v
 - Capture app: Record3D by Marek Simonik. Its official feature page documents export/sharing, and the App Store listing states that LiDAR capture is supported. The evaluator should record the installed version visible on the capture phone: <https://record3d.app/features> and <https://apps.apple.com/us/app/record3d-3d-videos/id1477716895>.
 - No pretrained model, hosted API, benchmark label, or incumbent-app output is used in inference.
 - Monocular metric scale is mathematically underconstrained without a known object, motion/depth, or learned prior. The photo/video baseline therefore returns wide intervals rather than confident fabricated precision.
-

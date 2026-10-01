@@ -22,9 +22,9 @@ Legend: **done** is executable now; **partial** is present but does not meet the
 | Drift correction + ablation | `lidar.py`, `scripts/run_drift_ablation.ps1` | Endpoint constraint on/off outputs | done; benefit must be measured |
 | Repeatability gate | `spacescan-evaluate` + duplicate captures | Per-dimension errors | blocked: duplicate capture/ground truth needed |
 | Three-tier benchmark | `benchmark/ground_truth.example.json` | Deterministic evaluator | blocked: required benchmark capture not supplied |
+| Benchmark report | `docs/BENCHMARK_REPORT.md` | Reproducibility checks + required tables | partial: accuracy rows blocked by missing truth |
 | Head-to-head vs consumer app | `docs/HEAD_TO_HEAD_TEMPLATE.md` | Dimension table template | blocked: same-room app export needed |
 | Fix loop before/after | `docs/FIX_LOOP.md` | Declaration and commands | partial: code fix shipped; laser result pending |
 | Raw benchmark evidence | external reproduction bundle | Original files/checksums | blocked: candidate must capture and upload |
 
 This matrix intentionally does not convert “field exists” into “requirement passed.”
-

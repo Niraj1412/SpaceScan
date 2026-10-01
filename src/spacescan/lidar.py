@@ -131,7 +131,10 @@ def analyze_lidar(input_path: Path, max_frames: int = 240, drift_correction: boo
     ceiling_height = ceiling - floor
     area = polygon_area(polygon)
     dimensions = np.linalg.norm(np.roll(polygon, -1, axis=0) - polygon, axis=1)
-    geometry_uncertainty = max(0.015, float(np.std(cloud.trajectory[:, 1])) * 0.35)
+    # Until residuals are calibrated on held-out laser truth, do not emit a
+    # centimetre-level interval simply because the fitted planes look sharp.
+    loop_term = cloud.endpoint_error_m * 0.15 if cloud.loop_closure_applied else 0.0
+    geometry_uncertainty = max(0.03, loop_term, float(np.std(cloud.trajectory[:, 1])) * 0.35)
     ceiling_uncertainty = 0.02 if height_method == "horizontal-plane modes" else 0.25
     walls: list[Wall] = []
     for index, (start, end, length) in enumerate(zip(polygon, np.roll(polygon, -1, axis=0), dimensions), start=1):
