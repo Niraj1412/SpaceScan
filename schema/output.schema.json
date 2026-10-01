@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/spacescan/output.schema.json",
+  "title": "SpaceScan capture result",
+  "type": "object",
+  "required": ["schema_version", "capture", "property", "concealed_damage_flags", "scope_line_items", "diagnostics"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "capture": {
+      "type": "object",
+      "required": ["id", "tier", "source", "units"],
+      "properties": {"tier": {"enum": ["photos", "video", "lidar"]}}
+    },
+    "property": {
+      "type": "object",
+      "required": ["rooms", "adjacencies", "footprint_area"],
+      "properties": {"rooms": {"type": "array", "minItems": 1}}
+    }
+  }
+}
+

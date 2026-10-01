@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+runs/
+tmp_frames/
+
+# Raw captures are intentionally kept out of Git; submit them as the reproduction bundle.
+single_room/
+single_scan_floor_only/
+single_scan_with_ceiling/
+
