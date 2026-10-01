@@ -1,0 +1,19 @@
+{
+  "capture_id": "replace-me",
+  "instrument": "laser measurer model + serial or tape model",
+  "measured_by": "replace-me",
+  "measured_at": "2026-10-02T00:00:00+05:30",
+  "rooms": [
+    {
+      "id": "room-1",
+      "ceiling_height_m": 2.45,
+      "walls": [
+        {"id": "room-1-wall-1", "length_m": 4.0},
+        {"id": "room-1-wall-2", "length_m": 3.0},
+        {"id": "room-1-wall-3", "length_m": 4.0},
+        {"id": "room-1-wall-4", "length_m": 3.0}
+      ],
+      "openings": []
+    }
+  ]
+}

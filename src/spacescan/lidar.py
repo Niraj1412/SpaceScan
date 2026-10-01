@@ -63,8 +63,9 @@ def build_cloud(input_path: Path, max_frames: int = 240, pixel_step: int = 4, dr
         cx, cy = float(row["cx"]) * scale_x, float(row["cy"]) * scale_y
         image_x = (xx - cx) * z / fx
         image_y = (yy - cy) * z / fy
-        # Initial landscape-orientation hypothesis (corrected in the fix-loop commit).
-        camera = np.stack([image_y, -image_x, z], axis=-1)
+        # Record3D exports optical +Z depth. Image Y points down while the
+        # pose's camera Y points up, hence the sign flip on image_y.
+        camera = np.stack([image_x, -image_y, z], axis=-1)
         valid = (conf >= 2) & (z > 0.20) & (z < 5.0)
 
         rotation = quaternion_matrix(np.array([float(row[key]) for key in ("qx", "qy", "qz", "qw")]))
