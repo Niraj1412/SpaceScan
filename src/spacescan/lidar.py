@@ -6,8 +6,9 @@ import hashlib
 import numpy as np
 from PIL import Image
 
-from .geometry import dominant_manhattan_angle, oriented_envelope, polygon_area, quaternion_matrix, robust_mode
+from .geometry import deterministic_kmeans, dominant_manhattan_angle, oriented_envelope, polygon_area, quaternion_matrix, robust_mode, voronoi_partition
 from .io import read_csv_clean
+from .inspection import derive_claims, detect_lidar_openings
 from .models import Room, Wall, interval, to_dict
 
 
@@ -130,41 +131,74 @@ def analyze_lidar(input_path: Path, max_frames: int = 240, drift_correction: boo
     polygon = oriented_envelope(plan_points, angle)
     ceiling_height = ceiling - floor
     area = polygon_area(polygon)
-    dimensions = np.linalg.norm(np.roll(polygon, -1, axis=0) - polygon, axis=1)
     # Until residuals are calibrated on held-out laser truth, do not emit a
     # centimetre-level interval simply because the fitted planes look sharp.
     loop_term = cloud.endpoint_error_m * 0.15 if cloud.loop_closure_applied else 0.0
     geometry_uncertainty = max(0.03, loop_term, float(np.std(cloud.trajectory[:, 1])) * 0.35)
     ceiling_uncertainty = 0.02 if height_method == "horizontal-plane modes" else 0.25
-    walls: list[Wall] = []
-    for index, (start, end, length) in enumerate(zip(polygon, np.roll(polygon, -1, axis=0), dimensions), start=1):
-        wall_id = f"room-1-wall-{index}"
-        walls.append(Wall(
-            id=wall_id,
-            start=[round(float(x), 4) for x in start],
-            end=[round(float(x), 4) for x in end],
-            length=interval(float(length), geometry_uncertainty, "LiDAR wall-envelope bootstrap"),
-            surface_area=interval(float(length * ceiling_height), max(0.08, length * ceiling_uncertainty), "propagated wall × height", "m2"),
-        ))
-    room = Room(
-        id="room-1",
-        name="Room 1",
-        polygon=[[round(float(x), 4) for x in point] for point in polygon],
-        walls=walls,
-        floor_area=interval(area, max(0.08, area * 0.025), "LiDAR envelope propagation", "m2"),
-        ceiling_height=interval(ceiling_height, ceiling_uncertainty, height_method),
-    )
+    property_scale = area >= 60 and min(np.ptp(cloud.trajectory[:, [0, 2]], axis=0)) >= 5.5
+    requested_rooms = min(5, max(2, int(round(area / 28.0)))) if property_scale else 1
+    if requested_rooms > 1:
+        centers, labels = deterministic_kmeans(cloud.trajectory[:, [0, 2]], requested_rooms)
+        cells = voronoi_partition(polygon, centers)
+    else:
+        centers = np.mean(cloud.trajectory[:, [0, 2]], axis=0, keepdims=True)
+        labels = np.zeros(len(cloud.trajectory), dtype=int)
+        cells = [polygon]
+
+    rooms: list[Room] = []
+    center_to_room: dict[int, str] = {}
+    for center_index, cell in enumerate(cells):
+        cell_area = polygon_area(cell) if len(cell) >= 3 else 0.0
+        if cell_area < 2.0:
+            continue
+        room_index = len(rooms) + 1
+        room_id = f"room-{room_index}"
+        center_to_room[center_index] = room_id
+        cell_dimensions = np.linalg.norm(np.roll(cell, -1, axis=0) - cell, axis=1)
+        walls: list[Wall] = []
+        for wall_index, (start, end, length) in enumerate(zip(cell, np.roll(cell, -1, axis=0), cell_dimensions), start=1):
+            wall_id = f"{room_id}-wall-{wall_index}"
+            walls.append(Wall(
+                id=wall_id,
+                start=[round(float(x), 4) for x in start],
+                end=[round(float(x), 4) for x in end],
+                length=interval(float(length), geometry_uncertainty, "LiDAR wall-envelope/Voronoi partition"),
+                surface_area=interval(float(length * ceiling_height), max(0.08, length * ceiling_uncertainty), "propagated wall × height", "m2"),
+            ))
+        room = Room(
+            id=room_id,
+            name=f"Room {room_index}",
+            polygon=[[round(float(x), 4) for x in point] for point in cell],
+            walls=walls,
+            floor_area=interval(cell_area, max(0.08, cell_area * 0.04), "LiDAR property partition", "m2"),
+            ceiling_height=interval(ceiling_height, ceiling_uncertainty, height_method),
+        )
+        room.openings = detect_lidar_openings(cell, walls, vertical, floor, ceiling, geometry_uncertainty)
+        rooms.append(room)
+
+    adjacency_pairs: dict[tuple[str, str], int] = {}
+    for first, second in zip(labels, labels[1:]):
+        if first == second or int(first) not in center_to_room or int(second) not in center_to_room:
+            continue
+        pair = tuple(sorted((center_to_room[int(first)], center_to_room[int(second)])))
+        adjacency_pairs[pair] = adjacency_pairs.get(pair, 0) + 1
+    adjacencies = [
+        {"room_a": pair[0], "room_b": pair[1], "confidence": round(min(0.9, 0.55 + count * 0.04), 3), "method": "trajectory transition across non-overlapping property partition"}
+        for pair, count in sorted(adjacency_pairs.items())
+    ]
+    concealed, scope = derive_claims(rooms)
     capture_hash = hashlib.sha256((scan / "odometry.csv").read_bytes()).hexdigest()[:16]
     return {
         "schema_version": "1.0.0",
         "capture": {"id": capture_hash, "tier": "lidar", "source": str(input_path), "units": "metric"},
         "property": {
-            "rooms": [to_dict(room)],
-            "adjacencies": [],
-            "footprint_area": to_dict(interval(area, max(0.08, area * 0.025), "single-room envelope", "m2")),
+            "rooms": [to_dict(room) for room in rooms],
+            "adjacencies": adjacencies,
+            "footprint_area": to_dict(interval(area, max(0.08, area * 0.025), "LiDAR property envelope", "m2")),
         },
-        "concealed_damage_flags": [],
-        "scope_line_items": [],
+        "concealed_damage_flags": concealed,
+        "scope_line_items": scope,
         "diagnostics": {
             "status": "baseline",
             "frames_available": cloud.available_frames,
@@ -174,9 +208,11 @@ def analyze_lidar(input_path: Path, max_frames: int = 240, drift_correction: boo
             "endpoint_error_m": round(cloud.endpoint_error_m, 4),
             "loop_closure_applied": cloud.loop_closure_applied,
             "dominant_axis_degrees": round(float(np.degrees(angle)), 2),
+            "room_split_method": "trajectory k-means + clipped Voronoi partition" if requested_rooms > 1 else "single-room envelope",
             "limitations": [
-                "Opening and damage inference are intentionally empty until a validated detector is configured.",
-                "The baseline returns one envelope room; multi-room semantic splitting requires doorway evidence.",
+                "Opening inference is conservative wall-gap evidence; validate all misses and phantoms against ground truth.",
+                "RGB damage inference is not enabled on the LiDAR path in this baseline.",
+                "Property-scale room splitting is trajectory/Voronoi evidence and must be checked against doorway ground truth.",
             ],
         },
     }

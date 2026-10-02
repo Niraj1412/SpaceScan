@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image, ImageStat
 
 from .geometry import polygon_area
+from .inspection import derive_claims, detect_damage_regions, sample_video_frames
 from .models import Room, Wall, interval, to_dict
 
 
@@ -84,18 +85,22 @@ def analyze_photos(input_path: Path) -> dict:
     hash_state = hashlib.sha256()
     for index, (name, images) in enumerate(folders, start=1):
         sizes, brightness = [], []
+        decoded_images: list[Image.Image] = []
         for image_path in images:
             hash_state.update(image_path.read_bytes())
             try:
                 with Image.open(image_path) as image:
                     sizes.append(image.size)
                     brightness.append(float(ImageStat.Stat(image.convert("L").resize((64, 64))).mean[0]))
+                    decoded_images.append(image.convert("RGB").copy())
             except (OSError, ValueError):
                 continue
         hint = configured.get(name, {})
         width = float(hint.get("width_m", 3.6))
         length = float(hint.get("length_m", 3.2))
-        rooms.append(_make_room(index, name, width, length, x_offset, "photos"))
+        room = _make_room(index, name, width, length, x_offset, "photos")
+        room.damages = detect_damage_regions(decoded_images, room, "photos")
+        rooms.append(room)
         x_offset += width + 0.15
         quality.append({"room": name, "images": len(images), "decoded": len(sizes), "mean_brightness": round(sum(brightness) / max(1, len(brightness)), 1)})
     adjacencies = config.get("adjacencies") or [
@@ -122,12 +127,18 @@ def _video_metadata(path: Path) -> dict:
 def analyze_video(input_path: Path) -> dict:
     metadata = _video_metadata(input_path)
     room = _make_room(1, input_path.stem, 3.8, 3.4, 0.0, "video")
+    try:
+        duration = float(metadata.get("duration", 0) or 0)
+    except (TypeError, ValueError):
+        duration = 0.0
+    room.damages = detect_damage_regions(sample_video_frames(input_path, duration), room, "video")
     digest = hashlib.sha256(input_path.read_bytes()).hexdigest()[:16]
     return _media_result(input_path, "video", [room], [], digest, [metadata], room.floor_area.value)
 
 
 def _media_result(input_path: Path, tier: str, rooms: list[Room], adjacencies: list[dict], digest: str, quality: list[dict], total_area: float) -> dict:
     uncertainty = _measurement_width(tier, total_area)
+    concealed, scope = derive_claims(rooms)
     return {
         "schema_version": "1.0.0",
         "capture": {"id": digest, "tier": tier, "source": str(input_path), "units": "metric"},
@@ -136,8 +147,8 @@ def _media_result(input_path: Path, tier: str, rooms: list[Room], adjacencies: l
             "adjacencies": adjacencies,
             "footprint_area": to_dict(interval(total_area, uncertainty, f"{tier} aggregate prior", "m2")),
         },
-        "concealed_damage_flags": [],
-        "scope_line_items": [],
+        "concealed_damage_flags": concealed,
+        "scope_line_items": scope,
         "diagnostics": {
             "status": "degraded-baseline",
             "input_quality": quality,
@@ -145,7 +156,8 @@ def _media_result(input_path: Path, tier: str, rooms: list[Room], adjacencies: l
             "limitations": [
                 "Absolute scale is unobservable from unconstrained monocular input; intervals therefore expose the architectural prior.",
                 "Provide capture.json room dimensions only for pipeline integration tests, never for a blind accuracy benchmark.",
-                "Opening and damage inference require the optional disclosed model bundle and are empty in this dependency-light baseline.",
+                "Damage regions are conservative colour anomalies, not material diagnosis; human verification is required.",
+                "Monocular opening geometry is withheld until a detector passes the phantom/miss benchmark.",
             ],
         },
     }
