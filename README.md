@@ -87,6 +87,16 @@ Run the complete supplied-data reproduction suite:
 .\scripts\run_reproduction.ps1
 ```
 
+Run every official Brynz sample through LiDAR, native video, and a labelled
+video-frame photo smoke test:
+
+```powershell
+.\scripts\run_official_sample.ps1
+```
+
+The generated `photos-derived` rows prove interface coverage only. They are
+not represented as independently captured photo-tier benchmark evidence.
+
 ## Repository map
 
 - `src/spacescan/` — ingestion, geometry, uncertainty, validation, evaluation, and rendering

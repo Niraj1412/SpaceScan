@@ -8,6 +8,7 @@ dist/
 runs/
 tmp_frames/
 tmp*/
+sample_inputs/
 
 # Raw captures are intentionally kept out of Git; submit them as the reproduction bundle.
 single_room/
