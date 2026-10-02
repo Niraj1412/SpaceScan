@@ -46,6 +46,8 @@ def build_cloud(input_path: Path, max_frames: int = 240, pixel_step: int = 4, dr
     trajectory: list[np.ndarray] = []
     all_translations = np.array([[float(row[key]) for key in ("x", "y", "z")] for row in rows])
     endpoint_delta = all_translations[-1] - all_translations[0]
+    horizontal_endpoint_delta = endpoint_delta.copy()
+    horizontal_endpoint_delta[1] = 0.0
     horizontal_span = float(np.linalg.norm(np.ptp(all_translations[:, [0, 2]], axis=0)))
     endpoint_error = float(np.linalg.norm(endpoint_delta))
     close_loop = bool(drift_correction and horizontal_span > 2.5 and endpoint_error < 1.0)
@@ -76,7 +78,7 @@ def build_cloud(input_path: Path, max_frames: int = 240, pixel_step: int = 4, dr
             # residual endpoint error along the path (a lightweight pose-graph
             # endpoint constraint) before plane anchoring.
             alpha = float(index) / max(1, count - 1)
-            translation = translation - alpha * endpoint_delta
+            translation = translation - alpha * horizontal_endpoint_delta
         world = camera @ rotation.T + translation
 
         # Approximate local surface normals before masking. Cross-products survive rotation.
