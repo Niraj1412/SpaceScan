@@ -14,7 +14,7 @@ Video and photos share the output contract but not the evidence strength. The cu
 
 ## 3. Geometry, stitching, and drift
 
-Floor and ceiling are robust modes of world-height coordinates whose local normals are vertical. A missing ceiling invokes a documented 2.45 m prior and expands the interval from ±2 cm to ±25 cm. Vertical points between planes determine a dominant Manhattan frame; robust projected extrema form the baseline envelope.
+Floor and ceiling are robust modes of world-height coordinates whose local normals are vertical. A missing ceiling invokes a documented 2.45 m prior and expands the interval from ±2 cm to ±25 cm. Vertical points between planes determine a dominant Manhattan frame; robust projected extrema form the baseline envelope. Property-scale trajectories are deterministically clustered; clipped Voronoi cells partition the envelope without overlap, while temporal transitions produce adjacency evidence. Conservative wall-height histograms emit a door only when a lower/middle gap has lintel support.
 
 For captures that return within 1 m of their origin and span over 2.5 m, an endpoint loop constraint distributes the residual translation along the trajectory before plane anchoring. The ablation command produces plans with this correction on and off. This is a transparent lightweight pose-graph constraint, not a claim of full SLAM re-optimization. Photo folders are laid out without overlap and folder order supplies low-confidence adjacency; this is not yet acceptable whole-property stitching.
 
@@ -30,7 +30,6 @@ The worst observed internal failure was ceiling extraction. A wrong Record3D opt
 
 ## 6. Known failures and next work
 
-The baseline does not yet detect openings, damage, concealed damage, or scope items. It reduces a LiDAR property to one rectangular envelope and cannot represent non-Manhattan/concave rooms. Mirrors, glass, moving objects, low texture, missing ceiling coverage, open doors, and non-closed paths can corrupt evidence. Photo/video results do not meet accuracy gates. These are submission blockers, not footnotes.
+The dependency-light inspection path detects only strongly supported LiDAR door gaps and repeated centred colour anomalies. It derives concealed-moisture flags and surface-keyed scope, but these paths have synthetic tests rather than a blind field benchmark. Voronoi room boundaries are non-overlapping but can differ from physical walls, and the envelope cannot represent a concave exterior. Mirrors, glass, moving objects, low texture, missing ceiling coverage, open doors, and non-closed paths can corrupt evidence. Photo/video metric geometry remains prior-based and does not meet accuracy gates. These are submission blockers, not footnotes.
 
 Highest-value next work: (1) capture the mandated benchmark and laser truth; (2) split free space into rooms and infer portals jointly; (3) add a disclosed segmentation/detection model for openings and damage, with surface reprojection; (4) implement visual loop closures and pose-graph optimization; (5) calibrate residual intervals per tier; (6) run the same rooms through a named consumer app and fill the head-to-head table.
-

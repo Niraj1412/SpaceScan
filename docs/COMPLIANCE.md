@@ -11,13 +11,13 @@ Legend: **done** is executable now; **partial** is present but does not meet the
 | Video accepted | `src/spacescan/media.py` | Clip ingestion, metadata, wide intervals | partial |
 | LiDAR depth/poses/intrinsics | `src/spacescan/lidar.py` | Metric point cloud and planes | done |
 | Per-room walls, height, area | `src/spacescan/models.py`, `lidar.py` | Interval-valued JSON | partial: rectangular envelope only |
-| Openings and detection scoring | output `rooms[].openings` | Published field | missing detector |
-| Multi-room stitched plan | `media.py`, `render.py` | Non-overlapping SVG and adjacency list | partial: folder-order fallback; no LiDAR room split |
-| Damage class + metric extent | output `rooms[].damages` | Published field | missing detector |
-| Concealed-damage flags | output `concealed_damage_flags` | Published field | missing rules |
-| Scope line items keyed to surfaces | output `scope_line_items` | Published field | missing rules/catalogue |
+| Openings and detection scoring | `inspection.py`, output `rooms[].openings` | Conservative LiDAR wall-gap detector | partial: synthetic-tested; blind miss/phantom rate unmeasured |
+| Multi-room stitched plan | `lidar.py`, `geometry.py`, `media.py`, `render.py` | Non-overlapping trajectory/Voronoi rooms and adjacency | partial: implemented; doorway correctness needs ground truth |
+| Damage class + metric extent | `inspection.py`, output `rooms[].damages` | Repeated centered colour-anomaly regions | partial: synthetic-tested; benchmark classes unmeasured |
+| Concealed-damage flags | `inspection.py`, output `concealed_damage_flags` | Evidence-linked moisture rules | done |
+| Scope line items keyed to surfaces | `inspection.py`, output `scope_line_items` | Surface/damage-linked quantities | done |
 | Confidence interval every measurement | `models.py`, validator | value/low/high/unit/confidence/method | done |
-| Published JSON schema | `schema/output.schema.json` | Draft 2020-12 schema | partial: top-level strictness only |
+| Published JSON schema | `schema/output.schema.json` | Draft 2020-12 nested contract | done |
 | Rendered plan | `src/spacescan/render.py` | SVG with dimensions/intervals | done |
 | Drift correction + ablation | `lidar.py`, `scripts/run_drift_ablation.ps1` | Endpoint constraint on/off outputs | done; benefit must be measured |
 | Repeatability gate | `spacescan-evaluate` + duplicate captures | Per-dimension errors | blocked: duplicate capture/ground truth needed |

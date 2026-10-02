@@ -53,7 +53,11 @@ Record3D input must contain `rgb.mp4`, `depth/*.png`, `confidence/*.png`, `odome
 3. Applies an endpoint loop constraint when the capture returns within 1 m of its starting marker.
 4. Finds horizontal floor/ceiling plane modes and vertical wall evidence.
 5. Estimates a Manhattan frame and a robust property envelope.
-6. Propagates geometry and pose variation into 95% intervals.
+6. Splits property-scale trajectories into non-overlapping rooms and derives adjacency from room transitions.
+7. Searches sufficiently supported wall planes for conservative door-sized gaps.
+8. Propagates geometry and pose variation into 95% intervals.
+
+Photo/video inspection uses repeated, centred colour-anomaly evidence for disclosed `mold_like_darkening` and `water_stain_like_discoloration` classes. Accepted regions generate concealed-moisture flags and surface-keyed scope items. These labels are triage signals, not material diagnosis.
 
 The plan is not a mesh screenshot: it is generated from the published structured measurements. A drift ablation is reproducible with:
 
@@ -75,6 +79,12 @@ The evaluator reports absolute/relative error, per-measurement gate status, and 
 
 ```powershell
 python -m unittest discover -s tests -v
+```
+
+Run the complete supplied-data reproduction suite:
+
+```powershell
+.\scripts\run_reproduction.ps1
 ```
 
 ## Repository map

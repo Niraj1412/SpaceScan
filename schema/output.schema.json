@@ -3,19 +3,71 @@
   "$id": "https://example.local/spacescan/output.schema.json",
   "title": "SpaceScan capture result",
   "type": "object",
+  "additionalProperties": false,
   "required": ["schema_version", "capture", "property", "concealed_damage_flags", "scope_line_items", "diagnostics"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "capture": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["id", "tier", "source", "units"],
-      "properties": {"tier": {"enum": ["photos", "video", "lidar"]}}
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "tier": {"enum": ["photos", "video", "lidar"]},
+        "source": {"type": "string"},
+        "units": {"const": "metric"}
+      }
     },
     "property": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["rooms", "adjacencies", "footprint_area"],
-      "properties": {"rooms": {"type": "array", "minItems": 1}}
+      "properties": {
+        "rooms": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/room"}},
+        "adjacencies": {"type": "array", "items": {"$ref": "#/$defs/adjacency"}},
+        "footprint_area": {"$ref": "#/$defs/interval"}
+      }
+    },
+    "concealed_damage_flags": {"type": "array", "items": {"type": "object", "required": ["id", "surface_id", "flag", "rule", "confidence"]}},
+    "scope_line_items": {"type": "array", "items": {"type": "object", "required": ["id", "surface_id", "action", "quantity", "unit", "confidence"]}},
+    "diagnostics": {"type": "object"}
+  },
+  "$defs": {
+    "point": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}], "minItems": 2, "maxItems": 2},
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "low", "high", "unit", "confidence", "method"],
+      "properties": {
+        "value": {"type": "number"}, "low": {"type": "number"}, "high": {"type": "number"},
+        "unit": {"enum": ["m", "m2"]}, "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "method": {"type": "string", "minLength": 1}
+      }
+    },
+    "wall": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "start", "end", "length", "surface_area"],
+      "properties": {"id": {"type": "string"}, "start": {"$ref": "#/$defs/point"}, "end": {"$ref": "#/$defs/point"}, "length": {"$ref": "#/$defs/interval"}, "surface_area": {"$ref": "#/$defs/interval"}}
+    },
+    "opening": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "wall_id", "offset", "width", "height", "detection_confidence"],
+      "properties": {"id": {"type": "string"}, "kind": {"enum": ["door", "window", "opening"]}, "wall_id": {"type": "string"}, "offset": {"$ref": "#/$defs/interval"}, "width": {"$ref": "#/$defs/interval"}, "height": {"$ref": "#/$defs/interval"}, "detection_confidence": {"type": "number", "minimum": 0, "maximum": 1}}
+    },
+    "damage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "surface_id", "damage_class", "polygon_uv", "area", "detection_confidence"],
+      "properties": {"id": {"type": "string"}, "surface_id": {"type": "string"}, "damage_class": {"type": "string"}, "polygon_uv": {"type": "array", "minItems": 3, "items": {"$ref": "#/$defs/point"}}, "area": {"$ref": "#/$defs/interval"}, "detection_confidence": {"type": "number", "minimum": 0, "maximum": 1}}
+    },
+    "room": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "polygon", "walls", "floor_area", "ceiling_height", "openings", "damages"],
+      "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "polygon": {"type": "array", "minItems": 3, "items": {"$ref": "#/$defs/point"}}, "walls": {"type": "array", "minItems": 3, "items": {"$ref": "#/$defs/wall"}}, "floor_area": {"$ref": "#/$defs/interval"}, "ceiling_height": {"$ref": "#/$defs/interval"}, "openings": {"type": "array", "items": {"$ref": "#/$defs/opening"}}, "damages": {"type": "array", "items": {"$ref": "#/$defs/damage"}}}
+    },
+    "adjacency": {
+      "type": "object", "additionalProperties": false,
+      "required": ["room_a", "room_b", "confidence", "method"],
+      "properties": {"room_a": {"type": "string"}, "room_b": {"type": "string"}, "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "method": {"type": "string"}}
     }
   }
 }
-
