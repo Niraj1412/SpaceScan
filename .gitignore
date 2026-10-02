@@ -9,6 +9,8 @@ runs/
 tmp_frames/
 tmp*/
 sample_inputs/
+test_photos/
+benchmark/my_ground_truth.json
 
 # Raw captures are intentionally kept out of Git; submit them as the reproduction bundle.
 single_room/
