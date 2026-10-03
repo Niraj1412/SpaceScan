@@ -209,3 +209,5 @@ The script produces a source archive, candidate-evidence archive, complete Git-h
 - The available evidence lacks an independent repeat capture, three complete rooms plus connector, two measured damage classes, and a consumer-app export.
 
 No hosted inference service, private infrastructure, benchmark label, or incumbent-app output is used during inference.
+#   S p a c e S c a n  
+ 
