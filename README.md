@@ -1,133 +1,211 @@
 # SpaceScan
 
-SpaceScan is an offline, uncertainty-aware baseline for turning iPhone room captures into a dimensioned plan. It accepts three input tiers—photo folders, handheld video, and Record3D LiDAR exports—and always writes the same versioned JSON contract plus an SVG plan.
+SpaceScan is an offline, uncertainty-aware prototype that turns room captures into a structured, dimensioned property plan. It accepts photo folders, handheld video, and Record3D LiDAR exports through one command and writes the same versioned JSON contract plus an SVG plan for every tier.
 
-> Submission status: the LiDAR path uses raw depth, confidence, per-frame intrinsics, and poses. Photo/video paths can use a local metric-depth model, calibrated against the supplied synchronized LiDAR, but remain degraded and are not claimed to meet the assignment's accuracy gates. Opening and damage detectors are implemented conservatively and remain unverified on labelled field evidence. See [COMPLIANCE.md](docs/COMPLIANCE.md).
+This repository is an Applied AI Engineer take-home submission. It prioritizes reproducibility and explicit failure reporting: unsupported evidence produces wider intervals or a documented miss rather than fabricated precision.
 
-## Clean-machine setup (under 15 minutes)
+## Status
 
-Requirements: Python 3.10+, `pip`, and FFmpeg/ffprobe on `PATH` for video metadata. No cloud service or private infrastructure is called.
+| Capability | Status |
+|---|---|
+| Photo-folder ingestion and whole-property layout | Implemented; metric accuracy gate not met |
+| Video ingestion and metric-depth envelope | Implemented; multi-room pose graph not available |
+| Record3D depth, confidence, intrinsics, and poses | Implemented |
+| Floor/ceiling planes and room measurements | Implemented; rectangular/Voronoi approximation |
+| Multi-room adjacency | Implemented from trajectory or declared photo manifest |
+| Drift correction and on/off ablation | Implemented |
+| Conservative opening and damage inference | Implemented; field recall remains unverified |
+| Measurement intervals, JSON schema, and SVG plan | Implemented |
+| Ground-truth and opening miss/phantom evaluation | Implemented |
+
+See the [compliance matrix](docs/COMPLIANCE.md) and [benchmark report](docs/BENCHMARK_REPORT.md) for requirement-level status and measured failures.
+
+## Quick start
+
+Requirements:
+
+- Python 3.10 or newer
+- Git and `pip`
+- FFmpeg/ffprobe on `PATH` for video inspection and sample extraction
+- Windows PowerShell for the provided setup and reproduction scripts
 
 ```powershell
-git clone <submission-repository-url>
+git clone <repository-url>
 cd spacescan
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install -e .
-spacescan <capture-path> --output runs/<capture-name>
+python -m unittest discover -s tests -v
 ```
 
-For model-backed photo/video geometry, install the optional local model once:
+The base package depends only on NumPy and Pillow. It runs without a network service.
+
+### Optional model-backed photo/video geometry
+
+Install the pinned Depth Anything V2 Metric Indoor Small model and CPU runtime:
 
 ```powershell
 .\scripts\setup_metric_depth.ps1
-spacescan-calibrate-depth .\single_room .\single_scan_floor_only .\single_scan_with_ceiling `
-  --frames 4 --output .\runs\depth_calibration.json --write-calibration
 ```
 
-The setup script downloads the official Apache-2.0 Depth Anything V2 Small indoor checkpoint and CPU runtime. Model code and weights remain ignored by Git. Inference is offline; without this bundle, photo/video processing automatically falls back to disclosed architectural priors.
+The script checks out a pinned official model revision and verifies the checkpoint SHA-256. Model code and weights are kept outside Git. Without this bundle, photo/video processing falls back to clearly labelled architectural priors.
 
-macOS/Linux activation is `source .venv/bin/activate`. The result is:
-
-```text
-runs/<capture-name>/
-├── result.json    # schema-versioned measurements and 95% intervals
-└── plan.svg       # dimensioned property plan
-```
-
-If editable installation is unavailable, run without installation:
+If synchronized RGB/LiDAR captures are available, calibrate the model before RGB evaluation:
 
 ```powershell
-$env:PYTHONPATH = (Resolve-Path .\src)
-python -m spacescan.cli <capture-path> --output runs/<capture-name>
+spacescan-calibrate-depth `
+  .\single_room `
+  .\single_scan_floor_only `
+  .\single_scan_with_ceiling `
+  --frames 4 `
+  --output .\runs\depth_calibration.json `
+  --write-calibration
 ```
 
-## One command per capture
+## Run a capture
 
 Tier detection is automatic:
 
 ```powershell
-spacescan data/property_photos --output runs/photos
-spacescan data/walkthrough.mov --output runs/video
-spacescan data/record3d_export --output runs/lidar
+spacescan .\data\property_photos --output .\runs\photos
+spacescan .\data\walkthrough.mp4 --output .\runs\video
+spacescan .\data\record3d_export --output .\runs\lidar
 ```
 
-Photo input is either one folder of images (one room), or a property folder with one image folder per room. An optional `capture.json` may declare adjacency for integration testing; measurements inserted there must not be used in a blind benchmark.
+Each run produces:
 
-Record3D input must contain `rgb.mp4`, `depth/*.png`, `confidence/*.png`, `odometry.csv`, and `camera_matrix.csv`. `imu.csv` is retained as raw evidence. Millimetre uint16 depth and confidence value 2 are used by default.
+```text
+runs/<capture>/
+|-- result.json   # schema-versioned measurements and 95% intervals
+`-- plan.svg      # plan rendered only from the structured result
+```
 
-## What the LiDAR path does
+The JSON contract is published at [schema/output.schema.json](schema/output.schema.json).
 
-1. Uniformly samples synchronized frames and unprojects depth with per-frame intrinsics.
-2. Converts Record3D optical coordinates to ARKit world coordinates.
-3. Applies an endpoint loop constraint when the capture returns within 1 m of its starting marker.
-4. Finds horizontal floor/ceiling plane modes and vertical wall evidence.
-5. Estimates a Manhattan frame and a robust property envelope.
-6. Splits property-scale trajectories into non-overlapping rooms and derives adjacency from room transitions.
-7. Searches sufficiently supported wall planes for conservative door-sized gaps.
-8. Propagates geometry and pose variation into 95% intervals.
+### Photo layout
 
-Photo/video inspection uses repeated, centred colour-anomaly evidence for disclosed `mold_like_darkening` and `water_stain_like_discoloration` classes. Accepted regions generate concealed-moisture flags and surface-keyed scope items. These labels are triage signals, not material diagnosis.
+Use one directory per room:
 
-Photo/video geometry uses the local Depth Anything V2 metric indoor Small model when installed. Per-frame ranges are aggregated into a room envelope; the supplied RGB/LiDAR pairs provide a single global scale check and a residual-based uncertainty width. This is model-backed evidence, not multi-view reconstruction: camera poses, exact room boundaries, and opening geometry are still unavailable in these tiers.
+```text
+property_photos/
+|-- 01_entrance/
+|-- 02_corridor/
+`-- 03_bedroom/
+```
 
-The plan is not a mesh screenshot: it is generated from the published structured measurements. A drift ablation is reproducible with:
+An optional `capture.json` can merge evidence folders and declare known adjacency without supplying benchmark dimensions:
+
+```json
+{
+  "rooms": [
+    {"name": "01_entrance", "folders": ["01_entrance"]},
+    {"name": "02_corridor", "folders": ["02_corridor"]},
+    {"name": "03_bedroom", "folders": ["03_bedroom", "04_damage"]}
+  ],
+  "adjacencies": [
+    {
+      "room_a": "room-1",
+      "room_b": "room-2",
+      "confidence": 0.9,
+      "method": "operator-declared connection"
+    }
+  ]
+}
+```
+
+### Record3D layout
+
+The LiDAR input directory must contain:
+
+```text
+record3d_export/
+|-- rgb.mp4
+|-- odometry.csv
+|-- camera_matrix.csv
+|-- imu.csv
+|-- depth/
+`-- confidence/
+```
+
+Depth is interpreted as millimetre uint16 data; confidence value 2 is used by default.
+
+## Pipeline
+
+The LiDAR path:
+
+1. Uniformly samples synchronized frames.
+2. Unprojects high-confidence depth with per-frame intrinsics.
+3. Converts the Record3D optical basis into ARKit world coordinates.
+4. Applies a horizontal endpoint loop constraint when the capture closes.
+5. Extracts floor/ceiling modes and vertical wall evidence.
+6. Estimates a Manhattan frame and robust property envelope.
+7. Partitions property-scale trajectories into non-overlapping rooms.
+8. Derives adjacency, searches for supported door-sized gaps, and propagates uncertainty.
+
+Photo/video geometry uses local metric-depth estimates when installed. It aggregates per-frame range and lateral evidence but does not claim full structure-from-motion or known camera poses. Repeated centered color anomalies can produce disclosed `mold_like_darkening` or `water_stain_like_discoloration` triage regions, concealed-moisture flags, and surface-keyed scope items. These are not material diagnoses.
+
+## Evaluation and reproduction
+
+Copy the ground-truth template, replace only values you measured, and keep room/wall IDs aligned with the measurement sketch:
 
 ```powershell
-.\scripts\run_drift_ablation.ps1 -Capture data/record3d_export
+Copy-Item .\benchmark\ground_truth.example.json .\benchmark\my_ground_truth.json
+spacescan-evaluate `
+  .\runs\photos\result.json `
+  .\benchmark\my_ground_truth.json `
+  --output .\runs\photos\evaluation.json
 ```
 
-## Ground-truth evaluation
+The evaluator reports absolute and relative error, gate status, interval coverage, and opening detection rate. Missed and phantom openings both count as detection failures.
 
-Copy [ground_truth.example.json](benchmark/ground_truth.example.json), replace every example number with laser/tape measurements, and run:
-
-```powershell
-spacescan-evaluate runs/lidar/result.json benchmark/my_room.ground_truth.json -o runs/lidar/evaluation.json
-```
-
-The evaluator reports absolute/relative error, per-measurement gate status, and empirical 95% interval coverage. It never silently matches walls by sorted length: IDs must correspond to the measurement sketch.
-
-## Test
+Useful reproduction commands:
 
 ```powershell
 python -m unittest discover -s tests -v
-```
-
-Run the complete supplied-data reproduction suite:
-
-```powershell
-.\scripts\run_reproduction.ps1
-```
-
-Run every official Brynz sample through LiDAR, native video, and a labelled
-video-frame photo smoke test:
-
-```powershell
 .\scripts\run_official_sample.ps1
+.\scripts\run_drift_ablation.ps1 -Capture .\single_scan_with_ceiling
 ```
 
-The generated `photos-derived` rows prove interface coverage only. They are
-not represented as independently captured photo-tier benchmark evidence.
+The current suite contains 12 deterministic tests. The official runner evaluates all three supplied captures through LiDAR, native video, and derived-photo smoke paths; derived photos are not represented as independent photo-tier evidence.
 
-## Repository map
+## Reported evidence
 
-- `src/spacescan/` — ingestion, geometry, uncertainty, validation, evaluation, and rendering
-- `schema/output.schema.json` — public output contract
-- `benchmark/` — ground-truth template (raw captures remain outside Git)
-- `docs/CAPTURE_PROTOCOL.md` — the one-page non-engineer capture route
-- `docs/DEVICE_MATRIX.md` — supported hardware and claimed accuracy
-- `docs/COMPLIANCE.md` — requirement-to-artifact matrix
-- `docs/TECHNICAL_REPORT.md` — concise architecture and error-budget report
-- `docs/BENCHMARK_REPORT.md` — supplied-data checks and unfilled accuracy gates
-- `docs/FIX_LOOP.md` — before/after declaration and required measurement placeholders
+- Supplied LiDAR outputs: 40.4456 m2, 98.1217 m2, and 116.1356 m2 footprints; the ceiling-covered capture estimates 2.4247 m height.
+- RGB/LiDAR sensor-reference calibration on nine synchronized frames: global scale 0.918525, median absolute relative pixel error 30.555%, and 95th-percentile relative error 179.879%.
+- Candidate photo benchmark: 11 available checks, 0% gate pass rate, 100% interval coverage, and 0% opening detection rate. The measured failures are retained in the report rather than hidden.
 
-## GitHub and evidence bundle
+These supplied-data and candidate results are not substitutes for an independent laser benchmark, repeat capture, or consumer-app comparison.
 
-The GitHub repository intentionally excludes raw captures, candidate photographs/video, generated runs, model weights, virtual environments, and private ground-truth files. This keeps the source repository small and avoids publishing residence imagery. Run `scripts/build_submission.ps1` to create the separate candidate-evidence archive and checksum manifest described in `SUBMISSION.md`. Share that evidence archive privately (for example through Google Drive) alongside the GitHub repository; do not commit it because it exceeds GitHub's normal file limit.
+## Capture and reports
 
-## Disclosures and limitations
+- [Capture protocol](docs/CAPTURE_PROTOCOL.md)
+- [Device matrix](docs/DEVICE_MATRIX.md)
+- [Compliance matrix](docs/COMPLIANCE.md)
+- [Benchmark report](docs/BENCHMARK_REPORT.md)
+- [Technical report](docs/TECHNICAL_REPORT.md)
+- [Fix-loop declaration](docs/FIX_LOOP.md)
+- [Head-to-head template](docs/HEAD_TO_HEAD_TEMPLATE.md)
+- [Submission handoff](SUBMISSION.md)
 
-- Base runtime dependencies: NumPy and Pillow. The optional model-backed path adds CPU PyTorch, torchvision, OpenCV, the official model code, and its Small indoor checkpoint. FFmpeg is used for video metadata/frame extraction.
-- Capture app: Record3D by Marek Simonik. Its official feature page documents export/sharing, and the App Store listing states that LiDAR capture is supported. The evaluator should record the installed version visible on the capture phone: <https://record3d.app/features> and <https://apps.apple.com/us/app/record3d-3d-videos/id1477716895>.
-- The optional pretrained model is disclosed and runs locally; no hosted inference API, benchmark label, or incumbent-app output is used.
-- Monocular metric scale remains uncertain. Calibration on nine synchronized supplied frames produced 30.6% median absolute relative pixel error and a 179.9% 95th-percentile tail under one global scale. That broad residual is propagated rather than replaced with a cosmetically narrow interval; this is not an accuracy-gate pass.
+## Repository and private evidence
+
+GitHub intentionally excludes raw captures, residence photos/video, generated runs, private ground truth, model weights, virtual environments, and submission archives. This keeps the repository small and avoids publishing private imagery.
+
+Create the separately shareable evidence package with:
+
+```powershell
+.\scripts\build_submission.ps1
+```
+
+The script produces a source archive, candidate-evidence archive, complete Git-history bundle, and SHA-256 manifest under `submission/`. Share the evidence privately alongside the GitHub repository; do not force-add ignored datasets or the 216 MB evidence archive to Git.
+
+## Known limitations
+
+- Monocular photo/video scale did not meet the assignment accuracy gates on the available capture.
+- Video currently emits one envelope and does not recover a multi-room visual pose graph.
+- Photo adjacency can be declared, but physical placement is a non-overlapping ordered layout rather than solved camera geometry.
+- LiDAR room boundaries use a Manhattan envelope and clipped Voronoi approximation; concave layouts may be inaccurate.
+- Opening and damage logic has synthetic tests but no labelled field precision/recall benchmark.
+- The available evidence lacks an independent repeat capture, three complete rooms plus connector, two measured damage classes, and a consumer-app export.
+
+No hosted inference service, private infrastructure, benchmark label, or incumbent-app output is used during inference.
