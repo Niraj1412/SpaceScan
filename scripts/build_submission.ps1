@@ -18,7 +18,11 @@ foreach ($archive in @($sourceZip, $evidenceZip, $historyBundle)) {
 }
 
 git -C $repo archive --format=zip --output $sourceZip HEAD
-git -C $repo bundle create $historyBundle master
+$currentBranch = (git -C $repo branch --show-current).Trim()
+if (-not $currentBranch) {
+  throw "Submission packaging requires a checked-out Git branch."
+}
+git -C $repo bundle create $historyBundle $currentBranch
 
 $evidence = @(
   (Join-Path $repo "property_photos"),
