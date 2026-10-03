@@ -26,9 +26,9 @@ After calibration, the three video footprint outputs were 15.0048, 28.7854, and 
 
 ## Candidate-captured RGB evidence
 
-On 4 October 2026, the candidate captured 18 original Android photographs and one 39.14-second 3840x2160 walkthrough of a quarter-type residence. The prepared photo input contains an entrance, a 2.00 x 0.90 m corridor, and a bedroom with one measured 3.20 m dimension. Both measured spaces have a 2.40 m ceiling; the entrance door measures 0.80 x 1.90 m. The unmeasured bedroom length is omitted rather than inferred as truth.
+On 4 October 2026, the candidate captured 18 original Android photographs and one 39.14-second 3840x2160 walkthrough of a quarter-type residence. The prepared photo input contains an entrance, a 2.00 x 0.90 m corridor, and a 3.20 x 2.90 m bedroom. Both measured spaces have a 2.40 m ceiling; the entrance door measures 0.80 x 1.90 m.
 
-The photo evaluation scored nine available checks: pass rate 0.0, mean numeric absolute error 5.2196 m, interval coverage 1.0, and opening detection rate 0.0. The bedroom width was predicted as 5.9371 m (85.53% error); corridor dimensions were much worse. The video path produced a single 5.4971 x 6.0517 m envelope and cannot semantically separate the room from its connector. These are documented failures of monocular geometry and stitching, not accuracy claims.
+The photo evaluation scored eleven available checks: pass rate 0.0, mean numeric absolute error 5.1648 m, interval coverage 1.0, and opening detection rate 0.0. The 3.20 x 2.90 m bedroom was predicted as 5.9371 x 7.8457 m (85.53% and 170.54% errors); corridor dimensions were worse. The video path produced a single 5.4971 x 6.0517 m envelope and cannot semantically separate the room from its connector. These are documented failures of monocular geometry and stitching, not accuracy claims.
 
 ## Required final benchmark gates
 
