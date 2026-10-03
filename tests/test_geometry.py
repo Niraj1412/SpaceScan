@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 import numpy as np
 from PIL import Image
 
@@ -8,6 +9,7 @@ from spacescan.validate import validate_result
 from spacescan.cli import detect_tier
 from spacescan.inspection import derive_claims, detect_damage_regions, detect_lidar_openings
 from spacescan.models import Room, Wall, interval
+from spacescan.metric_depth import estimate_room_dimensions
 
 
 class GeometryTests(unittest.TestCase):
@@ -66,6 +68,23 @@ class GeometryTests(unittest.TestCase):
         openings = detect_lidar_openings(polygon, [wall], points, 0.0, 2.4, 0.03)
         self.assertEqual(len(openings), 1)
         self.assertEqual(openings[0].kind, "door")
+
+    @patch("spacescan.metric_depth.calibration")
+    @patch("spacescan.metric_depth.predict_metric_depth")
+    def test_metric_depth_room_aggregation(self, predict, get_calibration):
+        predict.return_value = np.full((96, 128), 2.0, dtype=np.float32)
+        get_calibration.return_value = {
+            "scale": 1.1,
+            "relative_error_95": 0.22,
+            "source": "test reference",
+        }
+        images = [Image.new("RGB", (128, 96), "white") for _ in range(3)]
+        estimate = estimate_room_dimensions(images)
+        self.assertEqual(estimate.frames_used, 3)
+        self.assertAlmostEqual(estimate.length_m, 4.0)
+        self.assertGreaterEqual(estimate.width_m, 2.2)
+        self.assertLessEqual(estimate.width_m, estimate.length_m)
+        self.assertAlmostEqual(estimate.uncertainty_fraction, 0.22)
 
 
 if __name__ == "__main__":

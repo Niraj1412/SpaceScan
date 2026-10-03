@@ -12,6 +12,10 @@ dependencies = ["numpy>=1.24", "Pillow>=10"]
 [project.scripts]
 spacescan = "spacescan.cli:main"
 spacescan-evaluate = "spacescan.evaluate:main"
+spacescan-calibrate-depth = "spacescan.depth_calibration:main"
+
+[project.optional-dependencies]
+metric-depth = ["torch==2.7.1", "torchvision==0.22.1", "opencv-python>=4.10"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

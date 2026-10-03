@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.models/
 .pip-tmp/
 build/
 dist/

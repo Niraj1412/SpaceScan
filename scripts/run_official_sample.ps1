@@ -7,6 +7,18 @@ $env:PYTHONPATH = "$repo/src"
 $datasets = @("single_room", "single_scan_floor_only", "single_scan_with_ceiling")
 $rows = @()
 
+$metricDepthAvailable = python -c "from spacescan.metric_depth import is_available; print('yes' if is_available() else 'no')"
+if ($metricDepthAvailable.Trim() -eq "yes") {
+  $calibrationOutput = Join-Path $repo "$Output/depth_calibration.json"
+  python -m spacescan.depth_calibration `
+    (Join-Path $repo "single_room") `
+    (Join-Path $repo "single_scan_floor_only") `
+    (Join-Path $repo "single_scan_with_ceiling") `
+    --frames 4 --output $calibrationOutput --write-calibration
+} else {
+  Write-Warning "Optional metric-depth bundle is unavailable; photo/video rows will use architectural priors."
+}
+
 foreach ($dataset in $datasets) {
   $captureRoot = Join-Path $repo $dataset
   $scan = Get-ChildItem -LiteralPath $captureRoot -Directory | Select-Object -First 1
