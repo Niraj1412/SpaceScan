@@ -10,13 +10,15 @@ New-Item -ItemType Directory -Force -Path $destination | Out-Null
 
 $sourceZip = Join-Path $destination "spacescan-source.zip"
 $evidenceZip = Join-Path $destination "spacescan-candidate-evidence.zip"
-foreach ($archive in @($sourceZip, $evidenceZip)) {
+$historyBundle = Join-Path $destination "spacescan-history.bundle"
+foreach ($archive in @($sourceZip, $evidenceZip, $historyBundle)) {
   if (Test-Path -LiteralPath $archive) {
     Remove-Item -LiteralPath $archive -Force
   }
 }
 
 git -C $repo archive --format=zip --output $sourceZip HEAD
+git -C $repo bundle create $historyBundle --all
 
 $evidence = @(
   (Join-Path $repo "property_photos"),
@@ -36,13 +38,13 @@ if ($missing.Count) {
 }
 Compress-Archive -LiteralPath $evidence -DestinationPath $evidenceZip -CompressionLevel Optimal
 
-$hashes = foreach ($archive in @($sourceZip, $evidenceZip)) {
+$hashes = foreach ($archive in @($sourceZip, $evidenceZip, $historyBundle)) {
   $hash = Get-FileHash -LiteralPath $archive -Algorithm SHA256
   "$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($archive))"
 }
 $hashes | Set-Content -LiteralPath (Join-Path $destination "SHA256SUMS.txt") -Encoding ascii
 
-Get-Item -LiteralPath $sourceZip, $evidenceZip | Select-Object Name, Length, LastWriteTime
+Get-Item -LiteralPath $sourceZip, $evidenceZip, $historyBundle | Select-Object Name, Length, LastWriteTime
 Write-Host "Submission files written to $destination"
 if (-not $IncludeSuppliedLidar) {
   Write-Warning "Company-supplied LiDAR folders are omitted by default; reviewers can use the original sample-data link. Pass -IncludeSuppliedLidar to bundle them."

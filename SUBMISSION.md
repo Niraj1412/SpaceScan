@@ -8,10 +8,11 @@ Run:
 .\scripts\build_submission.ps1
 ```
 
-Upload both generated archives plus `SHA256SUMS.txt` from `submission/`:
+Upload the three generated artifacts plus `SHA256SUMS.txt` from `submission/`:
 
 - `spacescan-source.zip`: committed source, schema, tests, scripts, and reports.
 - `spacescan-candidate-evidence.zip`: original candidate photos/video, capture manifest, ground truth, generated JSON/SVG results, evaluations, calibration, and timing evidence.
+- `spacescan-history.bundle`: complete Git history for process-evidence review. A reviewer can inspect it with `git clone spacescan-history.bundle spacescan-history`.
 
 The optional model checkout, checkpoint, and virtual environment are deliberately excluded. `scripts/setup_metric_depth.ps1` fetches the pinned model revision and checksum-verified weights. The company-supplied LiDAR data is omitted from the default archive because the reviewer already owns it; use `-IncludeSuppliedLidar` if a self-contained large bundle is required.
 
