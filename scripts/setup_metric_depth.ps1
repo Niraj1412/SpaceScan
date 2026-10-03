@@ -21,8 +21,11 @@ New-Item -ItemType Directory -Force -Path $ModelRoot, $CheckpointDirectory | Out
 if (-not (Test-Path -LiteralPath (Join-Path $Repository ".git"))) {
     git clone --depth 1 https://github.com/DepthAnything/Depth-Anything-V2.git $Repository
 }
-git -C $Repository fetch --depth 1 origin $RepositoryRevision
-git -C $Repository checkout --detach $RepositoryRevision
+$CurrentRevision = git -C $Repository rev-parse HEAD
+if ($CurrentRevision.Trim() -ne $RepositoryRevision) {
+    git -C $Repository fetch --depth 1 origin $RepositoryRevision
+    git -C $Repository checkout --detach $RepositoryRevision
+}
 
 & $Python -m pip install --index-url https://download.pytorch.org/whl/cpu `
     "torch==2.7.1" "torchvision==0.22.1"
