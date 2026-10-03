@@ -10,6 +10,7 @@ from spacescan.cli import detect_tier
 from spacescan.inspection import derive_claims, detect_damage_regions, detect_lidar_openings
 from spacescan.models import Room, Wall, interval
 from spacescan.metric_depth import estimate_room_dimensions
+from spacescan.evaluate import evaluate
 
 
 class GeometryTests(unittest.TestCase):
@@ -85,6 +86,22 @@ class GeometryTests(unittest.TestCase):
         self.assertGreaterEqual(estimate.width_m, 2.2)
         self.assertLessEqual(estimate.width_m, estimate.length_m)
         self.assertAlmostEqual(estimate.uncertainty_fraction, 0.22)
+
+    def test_evaluator_counts_missed_and_phantom_openings(self):
+        prediction = {
+            "capture": {"id": "test", "tier": "lidar"},
+            "property": {"rooms": [{
+                "id": "room-1",
+                "ceiling_height": {"value": 2.4, "low": 2.38, "high": 2.42},
+                "walls": [],
+                "openings": [{"id": "phantom", "width": {"value": 0.8, "low": 0.78, "high": 0.82}}],
+            }]},
+        }
+        truth = {"rooms": [{"id": "room-1", "openings": [{"id": "real-door", "width_m": 0.8}]}]}
+        report = evaluate(prediction, truth)
+        detections = [item for item in report["measurements"] if item["kind"] == "opening_detection"]
+        self.assertEqual({item["status"] for item in detections}, {"missed", "phantom"})
+        self.assertEqual(report["summary"]["opening_detection_rate"], 0.0)
 
 
 if __name__ == "__main__":
