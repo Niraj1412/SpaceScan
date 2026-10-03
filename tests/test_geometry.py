@@ -11,6 +11,7 @@ from spacescan.inspection import derive_claims, detect_damage_regions, detect_li
 from spacescan.models import Room, Wall, interval
 from spacescan.metric_depth import estimate_room_dimensions
 from spacescan.evaluate import evaluate
+from spacescan.media import _room_folders
 
 
 class GeometryTests(unittest.TestCase):
@@ -102,6 +103,15 @@ class GeometryTests(unittest.TestCase):
         detections = [item for item in report["measurements"] if item["kind"] == "opening_detection"]
         self.assertEqual({item["status"] for item in detections}, {"missed", "phantom"})
         self.assertEqual(report["summary"]["opening_detection_rate"], 0.0)
+
+    def test_manifest_can_merge_evidence_folders_into_one_room(self):
+        root = Path(__file__).parent / "fixtures" / "photo_capture"
+        rooms = _room_folders(root, {
+            "rooms": [{"name": "merged-room", "folders": ["living_room", "living_room"]}],
+        })
+        self.assertEqual(len(rooms), 1)
+        self.assertEqual(rooms[0][0], "merged-room")
+        self.assertEqual(len(rooms[0][1]), 2)
 
 
 if __name__ == "__main__":

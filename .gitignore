@@ -13,6 +13,7 @@ sample_inputs/
 test_photos/
 property_photos/
 property_photos_prepared/
+submission/
 benchmark/my_ground_truth.json
 
 # Raw captures are intentionally kept out of Git; submit them as the reproduction bundle.

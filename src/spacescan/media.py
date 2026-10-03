@@ -21,7 +21,19 @@ def _images(path: Path) -> list[Path]:
     return sorted(item for item in path.iterdir() if item.is_file() and item.suffix.lower() in IMAGE_SUFFIXES)
 
 
-def _room_folders(path: Path) -> list[tuple[str, list[Path]]]:
+def _room_folders(path: Path, config: dict | None = None) -> list[tuple[str, list[Path]]]:
+    configured_rooms = (config or {}).get("rooms", [])
+    if any("folders" in room for room in configured_rooms):
+        merged: list[tuple[str, list[Path]]] = []
+        for room in configured_rooms:
+            images: list[Path] = []
+            for folder_name in room.get("folders", [room["name"]]):
+                folder = path / folder_name
+                if folder.is_dir():
+                    images.extend(_images(folder))
+            if images:
+                merged.append((room["name"], images))
+        return merged
     direct = _images(path)
     if direct:
         return [(path.name or "room-1", direct)]
@@ -77,10 +89,10 @@ def _manifest(path: Path) -> dict:
 
 
 def analyze_photos(input_path: Path) -> dict:
-    folders = _room_folders(input_path)
+    config = _manifest(input_path)
+    folders = _room_folders(input_path, config)
     if not folders:
         raise ValueError("photo capture contains no supported images")
-    config = _manifest(input_path)
     configured = {room["name"]: room for room in config.get("rooms", [])}
     rooms: list[Room] = []
     x_offset = 0.0
@@ -103,7 +115,8 @@ def analyze_photos(input_path: Path) -> dict:
         width = float(hint.get("width_m", 3.6))
         length = float(hint.get("length_m", 3.2))
         uncertainty_fraction = None
-        if not hint and metric_depth_available() and decoded_images:
+        has_dimension_hint = "width_m" in hint and "length_m" in hint
+        if not has_dimension_hint and metric_depth_available() and decoded_images:
             try:
                 estimate = estimate_room_dimensions(decoded_images)
                 width, length = estimate.width_m, estimate.length_m
