@@ -121,6 +121,10 @@ not represented as independently captured photo-tier benchmark evidence.
 - `docs/BENCHMARK_REPORT.md` — supplied-data checks and unfilled accuracy gates
 - `docs/FIX_LOOP.md` — before/after declaration and required measurement placeholders
 
+## GitHub and evidence bundle
+
+The GitHub repository intentionally excludes raw captures, candidate photographs/video, generated runs, model weights, virtual environments, and private ground-truth files. This keeps the source repository small and avoids publishing residence imagery. Run `scripts/build_submission.ps1` to create the separate candidate-evidence archive and checksum manifest described in `SUBMISSION.md`. Share that evidence archive privately (for example through Google Drive) alongside the GitHub repository; do not commit it because it exceeds GitHub's normal file limit.
+
 ## Disclosures and limitations
 
 - Base runtime dependencies: NumPy and Pillow. The optional model-backed path adds CPU PyTorch, torchvision, OpenCV, the official model code, and its Small indoor checkpoint. FFmpeg is used for video metadata/frame extraction.

@@ -1,20 +1,54 @@
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environments, credentials, editors, and operating-system files.
 .venv/
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Build and package output.
 .models/
 .pip-tmp/
 build/
 dist/
 *.egg-info/
+output/
+
+# Generated results and temporary working files.
 runs/
 tmp_frames/
 tmp*/
+**/tmp*/
 sample_inputs/
 test_photos/
 property_photos/
 property_photos_prepared/
 submission/
 benchmark/my_ground_truth.json
+
+# Generic capture/model artifacts must live in the external evidence bundle.
+data/
+captures/
+*.mp4
+*.mov
+*.m4v
+*.heic
+*.ply
+*.obj
+*.pth
+*.pt
+*.onnx
 
 # Raw captures are intentionally kept out of Git; submit them as the reproduction bundle.
 single_room/
