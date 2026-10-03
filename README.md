@@ -2,7 +2,7 @@
 
 SpaceScan is an offline, uncertainty-aware baseline for turning iPhone room captures into a dimensioned plan. It accepts three input tiers—photo folders, handheld video, and Record3D LiDAR exports—and always writes the same versioned JSON contract plus an SVG plan.
 
-> Submission status: the LiDAR path is implemented and uses raw depth, confidence, per-frame intrinsics, and poses. Photo/video paths are deterministic degraded baselines with honest wide intervals; they are not claimed to meet the assignment's accuracy gates. Opening and damage detectors are not yet implemented. See [COMPLIANCE.md](docs/COMPLIANCE.md).
+> Submission status: the LiDAR path uses raw depth, confidence, per-frame intrinsics, and poses. Photo/video paths can use a local metric-depth model, calibrated against the supplied synchronized LiDAR, but remain degraded and are not claimed to meet the assignment's accuracy gates. Opening and damage detectors are implemented conservatively and remain unverified on labelled field evidence. See [COMPLIANCE.md](docs/COMPLIANCE.md).
 
 ## Clean-machine setup (under 15 minutes)
 
@@ -16,6 +16,16 @@ python -m venv .venv
 python -m pip install -e .
 spacescan <capture-path> --output runs/<capture-name>
 ```
+
+For model-backed photo/video geometry, install the optional local model once:
+
+```powershell
+.\scripts\setup_metric_depth.ps1
+spacescan-calibrate-depth .\single_room .\single_scan_floor_only .\single_scan_with_ceiling `
+  --frames 4 --output .\runs\depth_calibration.json --write-calibration
+```
+
+The setup script downloads the official Apache-2.0 Depth Anything V2 Small indoor checkpoint and CPU runtime. Model code and weights remain ignored by Git. Inference is offline; without this bundle, photo/video processing automatically falls back to disclosed architectural priors.
 
 macOS/Linux activation is `source .venv/bin/activate`. The result is:
 
@@ -58,6 +68,8 @@ Record3D input must contain `rgb.mp4`, `depth/*.png`, `confidence/*.png`, `odome
 8. Propagates geometry and pose variation into 95% intervals.
 
 Photo/video inspection uses repeated, centred colour-anomaly evidence for disclosed `mold_like_darkening` and `water_stain_like_discoloration` classes. Accepted regions generate concealed-moisture flags and surface-keyed scope items. These labels are triage signals, not material diagnosis.
+
+Photo/video geometry uses the local Depth Anything V2 metric indoor Small model when installed. Per-frame ranges are aggregated into a room envelope; the supplied RGB/LiDAR pairs provide a single global scale check and a residual-based uncertainty width. This is model-backed evidence, not multi-view reconstruction: camera poses, exact room boundaries, and opening geometry are still unavailable in these tiers.
 
 The plan is not a mesh screenshot: it is generated from the published structured measurements. A drift ablation is reproducible with:
 
@@ -111,7 +123,7 @@ not represented as independently captured photo-tier benchmark evidence.
 
 ## Disclosures and limitations
 
-- Runtime dependencies: NumPy and Pillow. FFmpeg is used only to inspect video metadata.
+- Base runtime dependencies: NumPy and Pillow. The optional model-backed path adds CPU PyTorch, torchvision, OpenCV, the official model code, and its Small indoor checkpoint. FFmpeg is used for video metadata/frame extraction.
 - Capture app: Record3D by Marek Simonik. Its official feature page documents export/sharing, and the App Store listing states that LiDAR capture is supported. The evaluator should record the installed version visible on the capture phone: <https://record3d.app/features> and <https://apps.apple.com/us/app/record3d-3d-videos/id1477716895>.
-- No pretrained model, hosted API, benchmark label, or incumbent-app output is used in inference.
-- Monocular metric scale is mathematically underconstrained without a known object, motion/depth, or learned prior. The photo/video baseline therefore returns wide intervals rather than confident fabricated precision.
+- The optional pretrained model is disclosed and runs locally; no hosted inference API, benchmark label, or incumbent-app output is used.
+- Monocular metric scale remains uncertain. Calibration on nine synchronized supplied frames produced 30.6% median absolute relative pixel error and a 179.9% 95th-percentile tail under one global scale. That broad residual is propagated rather than replaced with a cosmetically narrow interval; this is not an accuracy-gate pass.

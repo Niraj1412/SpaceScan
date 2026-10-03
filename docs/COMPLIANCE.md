@@ -7,8 +7,8 @@ Legend: **done** is executable now; **partial** is present but does not meet the
 | Stock capture route | `docs/CAPTURE_PROTOCOL.md` | One-page operator instructions | done |
 | Device matrix | `docs/DEVICE_MATRIX.md` | Hardware/tier/accuracy table | done |
 | One command per capture | `src/spacescan/cli.py` | `spacescan INPUT -o OUTPUT` | done |
-| Photos accepted | `src/spacescan/media.py` | Folder ingestion, room layout, wide intervals | partial |
-| Video accepted | `src/spacescan/media.py` | Clip ingestion, metadata, wide intervals | partial |
+| Photos accepted | `src/spacescan/media.py`, `metric_depth.py` | Folder ingestion, local metric-depth aggregation, calibrated wide intervals | partial: no multi-view poses or blind accuracy pass |
+| Video accepted | `src/spacescan/media.py`, `metric_depth.py` | Clip sampling, local metric-depth aggregation, calibrated wide intervals | partial: no visual pose graph or blind accuracy pass |
 | LiDAR depth/poses/intrinsics | `src/spacescan/lidar.py` | Metric point cloud and planes | done |
 | Per-room walls, height, area | `src/spacescan/models.py`, `lidar.py` | Interval-valued JSON | partial: rectangular envelope only |
 | Openings and detection scoring | `inspection.py`, output `rooms[].openings` | Conservative LiDAR wall-gap detector | partial: synthetic-tested; blind miss/phantom rate unmeasured |
@@ -22,6 +22,7 @@ Legend: **done** is executable now; **partial** is present but does not meet the
 | Drift correction + ablation | `lidar.py`, `scripts/run_drift_ablation.ps1` | Endpoint constraint on/off outputs | done; benefit must be measured |
 | Repeatability gate | `spacescan-evaluate` + duplicate captures | Per-dimension errors | blocked: duplicate capture/ground truth needed |
 | Three-tier benchmark | `benchmark/ground_truth.example.json` | Deterministic evaluator | blocked: required benchmark capture not supplied |
+| RGB-depth model calibration | `depth_calibration.py`, `runs/depth_calibration.json` | Nine synchronized frames; global scale and residuals | done as sensor-reference check; not laser truth |
 | Benchmark report | `docs/BENCHMARK_REPORT.md` | Reproducibility checks + required tables | partial: accuracy rows blocked by missing truth |
 | Head-to-head vs consumer app | `docs/HEAD_TO_HEAD_TEMPLATE.md` | Dimension table template | blocked: same-room app export needed |
 | Fix loop before/after | `docs/FIX_LOOP.md` | Declaration and commands | partial: code fix shipped; laser result pending |

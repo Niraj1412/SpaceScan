@@ -2,34 +2,36 @@
 
 ## 1. Architecture and contract
 
-The system has one offline entry point and one output schema across three evidence tiers. Ingestion produces tier-specific evidence; geometry produces rooms, surfaces and adjacency; uncertainty wraps every metric value; validation rejects incomplete results; rendering consumes only structured output. This separation makes the SVG auditable and prevents a visually plausible plan from bypassing measurement checks.
+The system has one offline entry point and one output schema across photos, video, and LiDAR. Tier-specific ingestion feeds geometry and inspection; uncertainty wraps every metric value; validation rejects incomplete results; rendering consumes only structured output. This keeps the SVG auditable and prevents a visually plausible plan from bypassing measurement checks.
 
-The dependency-light implementation is deliberate for a cold walk-in run: NumPy and Pillow are the only Python runtime packages. Results are deterministic for the same bytes and frame budget. Capture IDs hash raw inputs, and diagnostics record frames, point counts, methods, limitations, and runtime.
+The base package requires NumPy and Pillow. The optional photo/video bundle adds CPU PyTorch, torchvision, OpenCV, and the official Depth Anything V2 Small indoor metric checkpoint. It is installed by `scripts/setup_metric_depth.ps1` and runs locally. Results are deterministic for the same bytes, weights, calibration, and frame budget. Capture IDs hash raw inputs; diagnostics record evidence, methods, limitations, and runtime.
 
-## 2. Tier design and devices
+## 2. Tier design
 
-LiDAR uses uint16 depth (millimetres), confidence maps, per-frame intrinsics, and 6DoF poses. Pixels unproject as `(x, -y, +z)` in Record3D optical coordinates and rotate into ARKit world coordinates. Only high-confidence depth from 0.2–5 m is admitted. Local normals separate horizontal plane evidence from vertical wall evidence.
+LiDAR uses uint16 millimetre depth, confidence maps, per-frame intrinsics, and 6DoF poses. Pixels unproject in the validated Record3D optical basis and rotate into ARKit world coordinates. Only high-confidence depth from 0.2-5 m is admitted. Local normals separate horizontal planes from vertical wall evidence.
 
-Video and photos share the output contract but not the evidence strength. The current baseline returns architectural priors with ±25% and ±40% wall intervals respectively. This honestly exposes scale ambiguity but fails the ±3%/±8% gates. The next model path is visual-inertial SfM for video and a disclosed metric-depth/room-layout ensemble for stills, calibrated on held-out properties. The device matrix is in `DEVICE_MATRIX.md`.
+For photos and video, the optional model predicts dense indoor range for sampled RGB frames. Robust far range and lateral point-cloud span form a rectangular room hypothesis. Without the model, an explicit architectural-prior fallback remains available. This is not structure-from-motion: unknown camera poses prevent rigorous stitching, so this path does not claim the assignment's +/-3% or +/-8% gates.
 
 ## 3. Geometry, stitching, and drift
 
-Floor and ceiling are robust modes of world-height coordinates whose local normals are vertical. A missing ceiling invokes a documented 2.45 m prior and expands the interval from ±2 cm to ±25 cm. Vertical points between planes determine a dominant Manhattan frame; robust projected extrema form the baseline envelope. Property-scale trajectories are deterministically clustered; clipped Voronoi cells partition the envelope without overlap, while temporal transitions produce adjacency evidence. Conservative wall-height histograms emit a door only when a lower/middle gap has lintel support.
+Floor and ceiling are robust modes of world-height coordinates whose local normals are vertical. A missing ceiling invokes a documented 2.45 m prior with a much wider interval. Vertical points determine a dominant Manhattan frame; robust projected extrema form the property envelope. Property-scale trajectories are deterministically clustered; clipped Voronoi cells partition that envelope without overlap, while temporal transitions produce adjacency evidence. Conservative wall-height histograms emit a door only when a lower/middle gap has lintel support.
 
-For captures that return within 1 m of their origin and span over 2.5 m, an endpoint loop constraint distributes the residual translation along the trajectory before plane anchoring. The ablation command produces plans with this correction on and off. This is a transparent lightweight pose-graph constraint, not a claim of full SLAM re-optimization. Photo folders are laid out without overlap and folder order supplies low-confidence adjacency; this is not yet acceptable whole-property stitching.
+For a path that returns within 1 m of its origin and spans over 2.5 m, an endpoint constraint distributes horizontal residual translation along the trajectory before plane anchoring. The ablation command produces correction-on and correction-off plans. This is a transparent lightweight constraint, not full SLAM re-optimization.
 
 ## 4. Error budget and calibration
 
-LiDAR wall uncertainty is the larger of 1.5 cm or a term derived from vertical pose variation. Floor-area and surface-area intervals propagate wall/height uncertainty. Ceiling uncertainty is ±2 cm with two observed planes and ±25 cm with the prior. Monocular tiers widen far more. Each interval stores its method, so downstream scope cannot confuse measured and assumed dimensions.
+LiDAR wall uncertainty is the larger of 1.5 cm or a term derived from pose variation. Floor and surface intervals propagate wall and height uncertainty. Ceiling uncertainty is +/-2 cm with two observed planes and +/-25 cm with the prior.
 
-The benchmark evaluator reports absolute error and empirical interval coverage. A nominal 95% system should cover about 95% of held-out ground-truth values; coverage materially below that means overconfidence even if mean error is small. Current constants are engineering priors, not calibrated claims. At least the specified multi-room, damaged, repeated, and cross-tier captures are required before fitting tier-specific residual quantiles.
+The metric-depth checkpoint was checked on nine synchronized frames across all three supplied captures. One median scale of 0.918525 gave 30.555% median absolute relative pixel error and a 179.879% 95th-percentile tail. Because the reference is supplied iPhone LiDAR rather than laser truth, the full broad residual is propagated; it is not a gate pass. Held-out properties and laser measurements remain necessary for defensible calibration.
 
-## 5. Fix loop
+The evaluator reports absolute error, relative error, per-measurement gate status, and interval coverage. A nominal 95% interval should cover roughly 95% of held-out truth; materially lower coverage means overconfidence even if mean error is small.
 
-The worst observed internal failure was ceiling extraction. A wrong Record3D optical basis dispersed nominally horizontal samples and forced a height prior. Correcting the basis produced sharp floor/ceiling modes and a 2.42 m direct estimate on the supplied ceiling scan. The declaration, prediction, regeneration command, and empty ground-truth cell are in `FIX_LOOP.md`. The cell remains empty because inventing a laser measurement would invalidate the assessment.
+## 5. Inspection and scope
 
-## 6. Known failures and next work
+Strongly supported LiDAR wall gaps can become openings. Repeated centred colour anomalies can become disclosed mold-like or water-stain-like regions. Accepted damage creates evidence-linked concealed-moisture flags and surface-keyed scope quantities. These are triage signals, not material diagnoses. Synthetic tests exercise the safeguards; labelled field precision/recall is still unavailable.
 
-The dependency-light inspection path detects only strongly supported LiDAR door gaps and repeated centred colour anomalies. It derives concealed-moisture flags and surface-keyed scope, but these paths have synthetic tests rather than a blind field benchmark. Voronoi room boundaries are non-overlapping but can differ from physical walls, and the envelope cannot represent a concave exterior. Mirrors, glass, moving objects, low texture, missing ceiling coverage, open doors, and non-closed paths can corrupt evidence. Photo/video metric geometry remains prior-based and does not meet accuracy gates. These are submission blockers, not footnotes.
+## 6. Fix loop and known failures
 
-Highest-value next work: (1) capture the mandated benchmark and laser truth; (2) split free space into rooms and infer portals jointly; (3) add a disclosed segmentation/detection model for openings and damage, with surface reprojection; (4) implement visual loop closures and pose-graph optimization; (5) calibrate residual intervals per tier; (6) run the same rooms through a named consumer app and fill the head-to-head table.
+The worst observed internal failure was ceiling extraction. An incorrect optical basis dispersed horizontal samples and forced a height prior. Correcting the basis produced sharp plane modes and a 2.42 m direct estimate on the supplied ceiling scan. `FIX_LOOP.md` records the declaration and regeneration command; the laser-truth cell remains blank rather than fabricated.
+
+Voronoi room boundaries can differ from physical walls, the envelope cannot represent a concave exterior, and photo/video room geometry can vary substantially with viewpoint. Mirrors, glass, motion, low texture, open doors, and non-closed paths can corrupt evidence. Highest-value next work is independent capture plus laser truth, labelled openings/damage, full visual pose estimation, and a same-room consumer-app comparison.
