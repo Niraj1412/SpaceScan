@@ -18,7 +18,7 @@ foreach ($archive in @($sourceZip, $evidenceZip, $historyBundle)) {
 }
 
 git -C $repo archive --format=zip --output $sourceZip HEAD
-git -C $repo bundle create $historyBundle --all
+git -C $repo bundle create $historyBundle master
 
 $evidence = @(
   (Join-Path $repo "property_photos"),
